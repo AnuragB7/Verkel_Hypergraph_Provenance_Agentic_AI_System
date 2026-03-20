@@ -96,7 +96,7 @@ export const benchmarkApi = {
     api.post('/benchmark/build-time-comparison').then(r => r.data),
 }
 
-// ─── Symptom Checker ─────────────────────────────────────────
+// ─── Drug Advisor ────────────────────────────────────────────
 export const symptomApi = {
   analyze: (symptoms: string) =>
     api.post('/symptom/analyze', { symptoms }).then(r => r.data),

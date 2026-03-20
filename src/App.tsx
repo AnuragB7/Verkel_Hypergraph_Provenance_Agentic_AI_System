@@ -15,7 +15,7 @@ const navItems = [
   { path: '/verkle', label: 'Verkle Tree', icon: Shield },
   { path: '/provenance', label: 'Provenance DAG', icon: GitBranch },
   { path: '/reasoning', label: 'Reasoning', icon: Brain },
-  { path: '/symptom-checker', label: 'Symptom Checker', icon: Stethoscope },
+  { path: '/symptom-checker', label: 'Drug Advisor', icon: Stethoscope },
   { path: '/benchmarks', label: 'Benchmarks', icon: BarChart3 },
 ]
 

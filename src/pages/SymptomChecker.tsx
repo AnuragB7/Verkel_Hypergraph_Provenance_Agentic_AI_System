@@ -159,7 +159,7 @@ export default function SymptomChecker() {
       <div>
         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <Search size={24} className="text-blue-600" />
-          Symptom Checker
+          Drug Advisor
         </h1>
         <p className="text-sm text-slate-500 mt-1">
           Describe symptoms to find matching drugs, then check if they can be safely combined.
