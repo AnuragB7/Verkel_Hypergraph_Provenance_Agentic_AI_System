@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from vhp.audit import AuditRecord, AuditVerifier
+from vhp.graphrag import DrugEmbeddingIndex, GraphRAGRetriever
 from vhp.hypergraph import Hypergraph
 from vhp.pipeline import VHPPipeline
 from vhp.reasoning import ReasoningEngine, SimulatedReasoningEngine, get_engine
@@ -31,6 +32,8 @@ class AppState:
         self._root_chain: Optional[TemporalRootChain] = None
         self._pipeline: Optional[VHPPipeline] = None
         self._engine_type: str = "simulated"
+        self._embedding_index: Optional[DrugEmbeddingIndex] = None
+        self._graphrag: Optional[GraphRAGRetriever] = None
 
     def initialise(self, engine_type: str | None = None, **engine_kwargs) -> None:
         """Build the hypergraph, Verkle tree, and pipeline."""
@@ -71,6 +74,17 @@ class AppState:
         self._pipeline = VHPPipeline(
             self._hypergraph, self._verkle, engine, self._root_chain
         )
+
+        # Build embedding index for GraphRAG (async-friendly — cached to disk)
+        try:
+            self._embedding_index = DrugEmbeddingIndex()
+            self._embedding_index.build(self._hypergraph)
+            self._graphrag = GraphRAGRetriever(self._embedding_index, self._hypergraph)
+            logger.info("GraphRAG embedding index ready (%d drugs)", len(self._embedding_index.drug_ids))
+        except Exception as exc:
+            logger.warning("GraphRAG embedding index failed (Ollama embedding model unavailable?): %s", exc)
+            self._embedding_index = None
+            self._graphrag = None
 
     def _detect_engine(self, **kwargs) -> str:
         """Try to connect to Ollama; fall back to simulated if unavailable."""
@@ -118,6 +132,14 @@ class AppState:
     @property
     def engine_type(self) -> str:
         return self._engine_type
+
+    @property
+    def graphrag(self) -> Optional[GraphRAGRetriever]:
+        return self._graphrag
+
+    @property
+    def embedding_index(self) -> Optional[DrugEmbeddingIndex]:
+        return self._embedding_index
 
 
 # Module-level singleton

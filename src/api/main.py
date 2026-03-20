@@ -31,7 +31,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.dependencies import get_state
-from api.routers import audit, benchmark, hypergraph, provenance, reasoning, verkle
+from api.routers import audit, benchmark, hypergraph, provenance, reasoning, symptom, verkle
 
 
 @asynccontextmanager
@@ -63,6 +63,7 @@ app.include_router(provenance.router, prefix="/api/provenance", tags=["provenanc
 app.include_router(reasoning.router, prefix="/api/reasoning", tags=["reasoning"])
 app.include_router(audit.router, prefix="/api/audit", tags=["audit"])
 app.include_router(benchmark.router, prefix="/api/benchmark", tags=["benchmark"])
+app.include_router(symptom.router, prefix="/api/symptom", tags=["symptom"])
 
 
 @app.get("/api/health")

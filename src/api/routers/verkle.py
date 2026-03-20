@@ -21,6 +21,32 @@ def get_root():
     }
 
 
+@router.get("/tree")
+def get_tree():
+    """Return full tree structure for visualization."""
+    vt = get_state().verkle
+    levels = []
+    for lvl_idx, level in enumerate(reversed(vt._levels)):
+        nodes = []
+        for node_idx, commitment in enumerate(level):
+            label = None
+            # Bottom level (leaves) — attach partition labels
+            if lvl_idx == len(vt._levels) - 1:
+                if node_idx < len(vt._leaf_commitments):
+                    label = vt._leaf_commitments[node_idx][0]
+            nodes.append({
+                "hash": commitment.hex()[:16],
+                "label": label,
+            })
+        levels.append(nodes)
+    return {
+        "depth": len(vt._levels),
+        "leaf_count": vt.leaf_count,
+        "root": vt.root_hex,
+        "levels": levels,
+    }
+
+
 @router.get("/proof/{partition_name}")
 def get_proof(partition_name: str):
     vt = get_state().verkle
