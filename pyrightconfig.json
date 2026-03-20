@@ -1,0 +1,7 @@
+{
+  "venvPath": "backend",
+  "venv": ".venv",
+  "extraPaths": ["backend/src", "backend/data"],
+  "include": ["backend/src", "backend/data", "backend/tests"],
+  "reportMissingImports": true
+}
