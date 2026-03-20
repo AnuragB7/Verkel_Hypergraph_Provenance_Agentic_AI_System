@@ -10,12 +10,12 @@ export const healthApi = {
 // ─── Hypergraph (Layer 1) ────────────────────────────────────
 export const hypergraphApi = {
   getStats: () => api.get('/hypergraph/stats').then(r => r.data),
-  getEntities: (limit = 200, offset = 0) =>
-    api.get('/hypergraph/entities', { params: { limit, offset } }).then(r => r.data),
+  getEntities: (limit = 200, offset = 0, types?: string) =>
+    api.get('/hypergraph/entities', { params: { limit, offset, ...(types ? { types } : {}) } }).then(r => r.data),
   getEntity: (id: string) =>
     api.get(`/hypergraph/entities/${encodeURIComponent(id)}`).then(r => r.data),
-  getEdges: (limit = 500, offset = 0) =>
-    api.get('/hypergraph/edges', { params: { limit, offset } }).then(r => r.data),
+  getEdges: (limit = 500, offset = 0, entity_ids?: string) =>
+    api.get('/hypergraph/edges', { params: { limit, offset, ...(entity_ids ? { entity_ids } : {}) } }).then(r => r.data),
   getHyperedges: () =>
     api.get('/hypergraph/hyperedges').then(r => r.data),
   getNeighbors: (id: string, relation?: string) =>

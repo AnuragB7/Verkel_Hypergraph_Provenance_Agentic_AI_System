@@ -7,13 +7,17 @@ import { ChevronDown, ChevronRight, ChevronLeft, X } from 'lucide-react'
 
 const typeColors: Record<string, string> = {
   drug: '#3b82f6',
-  condition: '#ef4444',
-  patient: '#22c55e',
+  target: '#ef4444',
   enzyme: '#f59e0b',
-  demographic: '#8b5cf6',
+  transporter: '#8b5cf6',
+  carrier: '#22c55e',
+  pathway: '#ec4899',
+  condition: '#f97316',
+  patient: '#14b8a6',
+  demographic: '#6b7280',
 }
 
-const PAGE_SIZE = 200
+const PAGE_SIZE = 50
 const EDGE_PAGE_SIZE = 500
 
 export default function Hypergraph() {
@@ -21,41 +25,127 @@ export default function Hypergraph() {
   const networkRef = useRef<Network | null>(null)
   const [selected, setSelected] = useState<any>(null)
   const [page, setPage] = useState(0)
+  const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set(['drug', 'target', 'enzyme', 'transporter', 'carrier', 'pathway']))
+
+  const typesParam = Array.from(activeTypes).join(',')
 
   const stats = useQuery({ queryKey: ['hg-stats'], queryFn: hypergraphApi.getStats })
   const entities = useQuery({
-    queryKey: ['entities', page],
-    queryFn: () => hypergraphApi.getEntities(PAGE_SIZE, page * PAGE_SIZE),
+    queryKey: ['entities', page, typesParam],
+    queryFn: () => hypergraphApi.getEntities(PAGE_SIZE, page * PAGE_SIZE, typesParam || undefined),
     placeholderData: keepPreviousData,
   })
   const edges = useQuery({
-    queryKey: ['edges', page],
-    queryFn: () => hypergraphApi.getEdges(EDGE_PAGE_SIZE, page * EDGE_PAGE_SIZE),
+    queryKey: ['edges', page, typesParam],
+    queryFn: () => {
+      const ids = entities.data?.items?.map((e: any) => e.id)
+      if (!ids?.length) return []
+      return hypergraphApi.getEdges(EDGE_PAGE_SIZE, 0, ids.join(','))
+    },
+    enabled: !!entities.data?.items?.length,
     placeholderData: keepPreviousData,
   })
   const hyperedges = useQuery({ queryKey: ['hyperedges'], queryFn: hypergraphApi.getHyperedges })
 
-  const totalEntities = stats.data?.entities ?? 0
+  const totalEntities = entities.data?.total ?? stats.data?.entities ?? 0
   const totalPages = Math.max(1, Math.ceil(totalEntities / PAGE_SIZE))
   const rangeStart = page * PAGE_SIZE + 1
   const rangeEnd = Math.min((page + 1) * PAGE_SIZE, totalEntities)
 
+  const toggleType = (type: string) => {
+    setActiveTypes(prev => {
+      const next = new Set(prev)
+      if (next.has(type)) next.delete(type)
+      else next.add(type)
+      return next
+    })
+    setPage(0)
+  }
+
   useEffect(() => {
-    if (!containerRef.current || !entities.data || !edges.data || !hyperedges.data) return
+    if (!containerRef.current || !entities.data?.items || !edges.data || !hyperedges.data) return
 
-    // Entity nodes
-    const nodes: any[] = entities.data.map((e: any) => ({
-      id: e.id,
-      label: e.name || e.id,
-      color: typeColors[e.type] || '#94a3b8',
-      shape: e.type === 'patient' ? 'diamond' : 'dot',
-      size: e.type === 'patient' ? 20 : 15,
-      font: { color: '#1e293b', size: 11 },
-      title: `${e.type}: ${e.name}`,
-    }))
+    const entityItems: any[] = entities.data.items
+    const entityIds = new Set(entityItems.map((e: any) => e.id))
 
-    // Hyperedge "hub" nodes (rendered as small square nodes connecting members)
-    hyperedges.data.forEach((h: any) => {
+    // Shape & size by entity type
+    const typeShapes: Record<string, { shape: string; size: number }> = {
+      drug:        { shape: 'dot',      size: 18 },
+      target:      { shape: 'triangle', size: 14 },
+      enzyme:      { shape: 'diamond',  size: 14 },
+      transporter: { shape: 'star',     size: 14 },
+      carrier:     { shape: 'hexagon',  size: 12 },
+      pathway:     { shape: 'square',   size: 12 },
+    }
+
+    // Primary entity nodes
+    const nodes: any[] = entityItems.map((e: any) => {
+      const ts = typeShapes[e.type] || { shape: 'dot', size: 12 }
+      return {
+        id: e.id,
+        label: e.name || e.id,
+        color: typeColors[e.type] || '#94a3b8',
+        shape: ts.shape,
+        size: ts.size,
+        font: { color: '#1e293b', size: 11 },
+        title: `${e.type}: ${e.name}`,
+      }
+    })
+
+    // Auto-add connected nodes from edges that aren't in current entity set
+    const connectedIds = new Set<string>()
+    edges.data.forEach((e: any) => {
+      if (!entityIds.has(e.source_id)) connectedIds.add(e.source_id)
+      if (!entityIds.has(e.target_id)) connectedIds.add(e.target_id)
+    })
+
+    // Only include hyperedges that overlap with current page entities
+    const allNodeIds = new Set([...entityIds, ...connectedIds])
+    const relevantHyperedges = hyperedges.data.filter((h: any) =>
+      h.entity_ids.some((eid: string) => entityIds.has(eid))
+    )
+    relevantHyperedges.forEach((h: any) => {
+      h.entity_ids.forEach((eid: string) => {
+        if (!allNodeIds.has(eid)) {
+          connectedIds.add(eid)
+          allNodeIds.add(eid)
+        }
+      })
+    })
+
+    // Create lightweight nodes for connected entities (we know their type from the edge relation)
+    connectedIds.forEach((id: string) => {
+      // Infer type from edge relationship
+      let type = 'drug'
+      edges.data.forEach((e: any) => {
+        if (e.target_id === id) {
+          if (e.relation === 'targets') type = 'target'
+          else if (e.relation === 'metabolized_by') type = 'enzyme'
+          else if (e.relation === 'transported_by') type = 'transporter'
+          else if (e.relation === 'carried_by') type = 'carrier'
+          else if (e.relation === 'participates_in') type = 'pathway'
+        }
+        if (e.source_id === id) {
+          if (e.relation === 'targets') type = 'drug'
+          else if (e.relation === 'metabolized_by') type = 'drug'
+        }
+      })
+      const ts = typeShapes[type] || { shape: 'dot', size: 10 }
+      nodes.push({
+        id,
+        label: id,
+        color: typeColors[type] || '#94a3b8',
+        shape: ts.shape,
+        size: ts.size * 0.7,
+        font: { color: '#64748b', size: 9 },
+        title: `${type}: ${id}`,
+        borderWidth: 1,
+        opacity: 0.7,
+      })
+    })
+
+    // Hyperedge "hub" nodes — only those relevant to the current page
+    relevantHyperedges.forEach((h: any) => {
       nodes.push({
         id: `he_${h.id}`,
         label: h.label.replace(/_/g, '\n'),
@@ -73,14 +163,20 @@ export default function Hypergraph() {
       from: e.source_id,
       to: e.target_id,
       label: e.relation.replace(/_/g, ' '),
-      color: { color: '#94a3b8', highlight: '#3b82f6' },
+      color: { color: e.relation === 'interacts_with' ? '#94a3b8' : typeColors[
+        e.relation === 'targets' ? 'target' :
+        e.relation === 'metabolized_by' ? 'enzyme' :
+        e.relation === 'transported_by' ? 'transporter' :
+        e.relation === 'carried_by' ? 'carrier' :
+        e.relation === 'participates_in' ? 'pathway' : 'drug'
+      ] || '#94a3b8', highlight: '#3b82f6' },
       font: { size: 9, color: '#64748b' },
       arrows: 'to',
       smooth: { type: 'curvedCW', roundness: 0.2 },
     }))
 
-    // Hyperedge connections (hub → member entities)
-    hyperedges.data.forEach((h: any) => {
+    // Hyperedge connections (hub → member entities) — only relevant ones
+    relevantHyperedges.forEach((h: any) => {
       h.entity_ids.forEach((eid: string) => {
         visEdges.push({
           id: `he_${h.id}_${eid}`,
@@ -112,7 +208,7 @@ export default function Hypergraph() {
           const he = hyperedges.data.find((h: any) => `he_${h.id}` === nodeId)
           setSelected(he ? { type: 'hyperedge', data: he } : null)
         } else {
-          const entity = entities.data.find((e: any) => e.id === nodeId)
+          const entity = entities.data?.items?.find((e: any) => e.id === nodeId)
           setSelected(entity ? { type: 'entity', data: entity } : null)
         }
       } else {
@@ -122,7 +218,7 @@ export default function Hypergraph() {
 
     networkRef.current = network
     return () => { network.destroy() }
-  }, [entities.data, edges.data, hyperedges.data])
+  }, [entities.data?.items, edges.data, hyperedges.data])
 
   return (
     <div className="flex h-full">
@@ -225,11 +321,11 @@ export default function Hypergraph() {
                   {selected.data.properties && Object.keys(selected.data.properties).length > 0 && (
                     <div>
                       <p className="text-xs text-slate-400 mb-1">Properties</p>
-                      <div className="bg-slate-50 rounded-md p-2 space-y-1">
+                      <div className="bg-slate-50 rounded-md p-2 space-y-2 max-h-96 overflow-y-auto">
                         {Object.entries(selected.data.properties).map(([k, v]: [string, any]) => (
-                          <div key={k} className="flex justify-between text-xs">
-                            <span className="text-slate-500">{k}</span>
-                            <span className="text-slate-700 font-medium truncate ml-2 max-w-[180px]">{String(v)}</span>
+                          <div key={k} className="text-xs">
+                            <span className="text-slate-500 font-medium">{k.replace(/_/g, ' ')}</span>
+                            <p className="text-slate-700 mt-0.5 whitespace-pre-wrap break-words">{String(v)}</p>
                           </div>
                         ))}
                       </div>
@@ -275,15 +371,41 @@ export default function Hypergraph() {
           </div>
         )}
 
-        {/* Legend — dynamic, only shows types present in data */}
+        {/* Legend + type filters */}
         <CollapsibleSection title="Node Types" defaultOpen>
-          {entities.data && (() => {
-            const types: string[] = Array.from(new Set(entities.data.map((e: any) => String(e.type))))
-            return types.map((type) => (
-              <div key={type} className="flex items-center gap-2 mb-1 text-sm">
-                <span className="w-3 h-3 rounded-full" style={{ background: typeColors[type] || '#94a3b8' }} />
-                {type} <span className="text-slate-400 text-xs">({stats.data?.entities ?? entities.data.filter((e: any) => e.type === type).length})</span>
-              </div>
+          {stats.data?.entity_type_counts && (() => {
+            const typeCounts: Record<string, number> = stats.data.entity_type_counts
+            const shapeIcon = (type: string) => {
+              const c = typeColors[type] || '#94a3b8'
+              const sz = 14
+              switch (type) {
+                case 'target': // triangle
+                  return <svg width={sz} height={sz} viewBox="0 0 14 14"><polygon points="7,1 13,13 1,13" fill={c}/></svg>
+                case 'enzyme': // diamond
+                  return <svg width={sz} height={sz} viewBox="0 0 14 14"><polygon points="7,0 14,7 7,14 0,7" fill={c}/></svg>
+                case 'transporter': // star
+                  return <svg width={sz} height={sz} viewBox="0 0 14 14"><polygon points="7,0 9,5 14,5.5 10,9 11.5,14 7,11.5 2.5,14 4,9 0,5.5 5,5" fill={c}/></svg>
+                case 'carrier': // hexagon
+                  return <svg width={sz} height={sz} viewBox="0 0 14 14"><polygon points="4,0 10,0 14,7 10,14 4,14 0,7" fill={c}/></svg>
+                case 'pathway': // square
+                  return <svg width={sz} height={sz} viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" fill={c}/></svg>
+                default: // dot (drug, etc.)
+                  return <svg width={sz} height={sz} viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill={c}/></svg>
+              }
+            }
+            return Object.entries(typeCounts)
+              .sort(([,a], [,b]) => (b as number) - (a as number))
+              .map(([type, count]) => (
+              <label key={type} className="flex items-center gap-2 mb-1 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={activeTypes.has(type)}
+                  onChange={() => toggleType(type)}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
+                />
+                {shapeIcon(type)}
+                {type} <span className="text-slate-400 text-xs">({(count as number).toLocaleString()})</span>
+              </label>
             ))
           })()}
           {hyperedges.data && (() => {

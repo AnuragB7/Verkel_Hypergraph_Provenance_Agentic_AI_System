@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { reasoningApi } from '../api/client'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Brain, Play, CheckCircle, XCircle, Loader2, ChevronDown } from 'lucide-react'
+import { Brain, Play, CheckCircle, XCircle, Loader2, ChevronDown, ChevronRight, Code2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 
 interface StepData {
   type: 'thought' | 'action' | 'observation' | 'conclusion'
   content: string
+  prompt?: string               // the actual prompt sent to the LLM
   id?: string
   hash?: string
   depends_on?: string[]
@@ -42,6 +43,16 @@ export default function Reasoning() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [switching, setSwitching] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const [expandedPrompts, setExpandedPrompts] = useState<Set<number>>(new Set())
+
+  const togglePrompt = (idx: number) => {
+    setExpandedPrompts(prev => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      return next
+    })
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -79,6 +90,14 @@ export default function Reasoning() {
           if (evt.type === 'step_start') {
             // Open a new empty step card
             setSteps(prev => [...prev, { type: evt.step_type, content: '', streaming: true }])
+          } else if (evt.type === 'prompt') {
+            // Attach the LLM prompt to the current (last) step
+            setSteps(prev => {
+              const copy = [...prev]
+              const last = copy[copy.length - 1]
+              if (last) copy[copy.length - 1] = { ...last, prompt: evt.text }
+              return copy
+            })
           } else if (evt.type === 'token') {
             // Append token to the last step
             setSteps(prev => {
@@ -256,6 +275,25 @@ export default function Reasoning() {
                       </span>
                       {step.hash && <span className="text-xs text-slate-400 font-mono">{step.hash}</span>}
                     </div>
+
+                    {/* Collapsible LLM prompt */}
+                    {step.prompt && (
+                      <div className="mb-2">
+                        <button
+                          onClick={() => togglePrompt(i)}
+                          className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                        >
+                          {expandedPrompts.has(i) ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                          <Code2 size={12} />
+                          <span>LLM Prompt</span>
+                        </button>
+                        {expandedPrompts.has(i) && (
+                          <pre className="mt-1 p-3 bg-slate-800 text-slate-200 text-xs rounded-lg overflow-x-auto whitespace-pre-wrap max-h-96 overflow-y-auto font-mono leading-relaxed">
+                            {step.prompt}
+                          </pre>
+                        )}
+                      </div>
+                    )}
 
                     {/* Markdown-rendered content for ALL step types */}
                     <div className={`text-sm ${style.text} prose prose-sm max-w-none ${style.prose}`}>
