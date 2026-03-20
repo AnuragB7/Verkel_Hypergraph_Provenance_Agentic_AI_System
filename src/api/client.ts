@@ -29,6 +29,7 @@ export const hypergraphApi = {
 // ─── Verkle (Layer 2) ────────────────────────────────────────
 export const verkleApi = {
   getRoot: () => api.get('/verkle/root').then(r => r.data),
+  getTree: () => api.get('/verkle/tree').then(r => r.data),
   getProof: (partition: string) =>
     api.get(`/verkle/proof/${encodeURIComponent(partition)}`).then(r => r.data),
   verify: (partition_name: string) =>
@@ -93,4 +94,10 @@ export const benchmarkApi = {
     api.post('/benchmark/hypergraph-vs-pairwise').then(r => r.data),
   buildTimeComparison: () =>
     api.post('/benchmark/build-time-comparison').then(r => r.data),
+}
+
+// ─── Symptom Checker ─────────────────────────────────────────
+export const symptomApi = {
+  analyze: (symptoms: string) =>
+    api.post('/symptom/analyze', { symptoms }).then(r => r.data),
 }

@@ -1,10 +1,201 @@
 import { useQuery } from '@tanstack/react-query'
 import { verkleApi, hypergraphApi } from '../api/client'
-import { useState } from 'react'
-import { Shield, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Shield, CheckCircle, XCircle, AlertTriangle, GitBranch } from 'lucide-react'
+
+interface TreeNode {
+  hash: string
+  label: string | null
+}
+
+const NODE_W = 120
+const NODE_H = 56
+const LEVEL_GAP = 40
+
+function VerkleTreeView({ levels }: { levels: TreeNode[][] }) {
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null)
+
+  const getParent = (lvl: number, idx: number): [number, number] | null =>
+    lvl <= 0 ? null : [lvl - 1, Math.floor(idx / 2)]
+
+  const getChildren = (lvl: number, idx: number): [number, number][] => {
+    if (lvl >= levels.length - 1) return []
+    const next = lvl + 1
+    const out: [number, number][] = []
+    const l = idx * 2, r = idx * 2 + 1
+    if (l < levels[next].length) out.push([next, l])
+    if (r < levels[next].length) out.push([next, r])
+    return out
+  }
+
+  // Compute absolute X center for every node, bottom-up
+  const positions = useMemo(() => {
+    const leafCount = levels[levels.length - 1].length
+    const totalW = leafCount * NODE_W
+    // pos[level][nodeIdx] = center X
+    const pos: number[][] = Array.from({ length: levels.length }, () => [])
+
+    // Leaves: evenly spaced
+    for (let i = 0; i < leafCount; i++) {
+      pos[levels.length - 1][i] = (i + 0.5) * (totalW / leafCount)
+    }
+    // Internal levels: center over children
+    for (let lvl = levels.length - 2; lvl >= 0; lvl--) {
+      for (let i = 0; i < levels[lvl].length; i++) {
+        const children = getChildren(lvl, i)
+        if (children.length > 0) {
+          const childXs = children.map(([cl, ci]) => pos[cl][ci])
+          pos[lvl][i] = childXs.reduce((a, b) => a + b, 0) / childXs.length
+        } else {
+          pos[lvl][i] = (i + 0.5) * (totalW / levels[lvl].length)
+        }
+      }
+    }
+    return pos
+  }, [levels])
+
+  // Highlighted path (root ↔ hovered)
+  const highlightedEdges = useMemo(() => {
+    const edgeSet = new Set<string>()
+    const nodeSet = new Set<string>()
+    if (!hoveredNode) return { edgeSet, nodeSet }
+    const [lvl, nd] = hoveredNode.split('-').map(Number)
+    // Walk to root
+    let cur: [number, number] | null = [lvl, nd]
+    while (cur) {
+      nodeSet.add(`${cur[0]}-${cur[1]}`)
+      const p = getParent(cur[0], cur[1])
+      if (p) edgeSet.add(`${p[0]}-${p[1]}:${cur[0]}-${cur[1]}`)
+      cur = p
+    }
+    // Walk to leaves (BFS)
+    const q: [number, number][] = [[lvl, nd]]
+    while (q.length) {
+      const [cl, cn] = q.shift()!
+      nodeSet.add(`${cl}-${cn}`)
+      for (const child of getChildren(cl, cn)) {
+        edgeSet.add(`${cl}-${cn}:${child[0]}-${child[1]}`)
+        nodeSet.add(`${child[0]}-${child[1]}`)
+        q.push(child)
+      }
+    }
+    return { edgeSet, nodeSet }
+  }, [hoveredNode, levels])
+
+  if (!levels || levels.length === 0) return null
+
+  const leafCount = levels[levels.length - 1].length
+  const totalW = leafCount * NODE_W
+  const totalH = levels.length * NODE_H + (levels.length - 1) * LEVEL_GAP
+
+  // Collect all edges
+  const edges: { key: string; x1: number; y1: number; x2: number; y2: number }[] = []
+  for (let lvl = 0; lvl < levels.length - 1; lvl++) {
+    const parentY = lvl * (NODE_H + LEVEL_GAP) + NODE_H
+    const childY = (lvl + 1) * (NODE_H + LEVEL_GAP)
+    for (let i = 0; i < levels[lvl].length; i++) {
+      for (const [cl, ci] of getChildren(lvl, i)) {
+        edges.push({
+          key: `${lvl}-${i}:${cl}-${ci}`,
+          x1: positions[lvl][i],
+          y1: parentY,
+          x2: positions[cl][ci],
+          y2: childY,
+        })
+      }
+    }
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="relative" style={{ width: totalW, height: totalH, margin: '0 auto' }}>
+        {/* SVG lines layer */}
+        <svg className="absolute inset-0" width={totalW} height={totalH} style={{ pointerEvents: 'none' }}>
+          {edges.map(e => {
+            const isHl = highlightedEdges.edgeSet.has(e.key)
+            return (
+              <line
+                key={e.key}
+                x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
+                stroke={isHl ? '#3b82f6' : '#cbd5e1'}
+                strokeWidth={isHl ? 2.5 : 1}
+                className="transition-all duration-150"
+              />
+            )
+          })}
+        </svg>
+
+        {/* Node boxes layer */}
+        {levels.map((level, levelIdx) => {
+          const y = levelIdx * (NODE_H + LEVEL_GAP)
+          return level.map((node, nodeIdx) => {
+            const cx = positions[levelIdx][nodeIdx]
+            const nodeKey = `${levelIdx}-${nodeIdx}`
+            const isHl = highlightedEdges.nodeSet.has(nodeKey)
+            const isRoot = levelIdx === 0 && level.length === 1
+            const isLeaf = levelIdx === levels.length - 1
+
+            return (
+              <div
+                key={nodeKey}
+                className={`
+                  absolute flex flex-col items-center justify-center
+                  rounded-lg border text-center cursor-default
+                  transition-all duration-150
+                  ${isRoot
+                    ? 'bg-blue-100 border-blue-400 shadow-md'
+                    : isLeaf
+                      ? 'bg-emerald-50 border-emerald-300'
+                      : 'bg-slate-50 border-slate-300'
+                  }
+                  ${isHl ? 'ring-2 ring-blue-400 shadow-lg scale-105 z-10' : 'z-0'}
+                `}
+                style={{
+                  width: NODE_W - 10,
+                  height: NODE_H - 4,
+                  left: cx - (NODE_W - 10) / 2,
+                  top: y + 2,
+                }}
+                onMouseEnter={() => setHoveredNode(nodeKey)}
+                onMouseLeave={() => setHoveredNode(null)}
+              >
+                {isRoot && (
+                  <div className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Root</div>
+                )}
+                <div className="font-mono text-[10px] text-slate-600 leading-tight px-1 break-all">
+                  {node.hash}
+                </div>
+                {node.label && (
+                  <div className="text-[9px] font-semibold text-emerald-700 truncate w-full px-1" title={node.label}>
+                    {node.label}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-6 text-xs text-slate-500 mt-4 pb-2">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded bg-blue-100 border border-blue-400" /> Root
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded bg-slate-50 border border-slate-300" /> Internal
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded bg-emerald-50 border border-emerald-300" /> Leaf (partition)
+        </span>
+        <span className="text-slate-400 ml-2">Hover a node to trace its proof path</span>
+      </div>
+    </div>
+  )
+}
 
 export default function Verkle() {
   const root = useQuery({ queryKey: ['verkle-root'], queryFn: verkleApi.getRoot })
+  const tree = useQuery({ queryKey: ['verkle-tree'], queryFn: verkleApi.getTree })
   const rootChain = useQuery({ queryKey: ['root-chain'], queryFn: verkleApi.getRootChain })
   const partitions = useQuery({ queryKey: ['partitions'], queryFn: hypergraphApi.getPartitions })
 
@@ -37,7 +228,7 @@ export default function Verkle() {
     <div className="p-8">
       <h1 className="text-2xl font-bold text-slate-800 mb-6">Verkle Verification (Layer 2)</h1>
 
-      {/* Root info */}
+      {/* Root info + Tree visualization */}
       {root.data && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
           <div className="flex items-center gap-3 mb-3">
@@ -45,12 +236,25 @@ export default function Verkle() {
             <h2 className="text-lg font-semibold text-slate-700">Root Commitment</h2>
           </div>
           <code className="text-xs bg-slate-100 p-2 rounded block break-all mb-2">{root.data.root}</code>
-          <p className="text-sm text-slate-500">
-            Depth: {root.data.depth} &middot; Leaves: {root.data.leaf_count}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">
-            Constant proof size: ~96 bytes regardless of tree size
-          </p>
+          <div className="flex items-center gap-4 text-sm text-slate-500">
+            <span>Depth: {root.data.depth}</span>
+            <span>Leaves: {root.data.leaf_count}</span>
+            <span className="text-xs text-slate-400">Constant proof size: ~96 bytes</span>
+          </div>
+        </div>
+      )}
+
+      {/* Verkle Tree Visualization */}
+      {tree.data && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
+          <div className="flex items-center gap-3 mb-3">
+            <GitBranch size={20} className="text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-700">Verkle Tree Structure</h2>
+            <span className="text-xs text-slate-400 ml-auto">
+              {tree.data.depth} levels &middot; {tree.data.leaf_count} partitions
+            </span>
+          </div>
+          <VerkleTreeView levels={tree.data.levels} />
         </div>
       )}
 

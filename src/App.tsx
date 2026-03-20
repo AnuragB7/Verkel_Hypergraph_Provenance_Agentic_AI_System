@@ -1,5 +1,5 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Network, Shield, GitBranch, Brain, BarChart3 } from 'lucide-react'
+import { LayoutDashboard, Network, Shield, GitBranch, Brain, BarChart3, Stethoscope } from 'lucide-react'
 import clsx from 'clsx'
 import Dashboard from './pages/Dashboard'
 import Hypergraph from './pages/Hypergraph'
@@ -7,6 +7,7 @@ import Verkle from './pages/Verkle'
 import Provenance from './pages/Provenance'
 import Reasoning from './pages/Reasoning'
 import Benchmarks from './pages/Benchmarks'
+import SymptomChecker from './pages/SymptomChecker'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -14,6 +15,7 @@ const navItems = [
   { path: '/verkle', label: 'Verkle Tree', icon: Shield },
   { path: '/provenance', label: 'Provenance DAG', icon: GitBranch },
   { path: '/reasoning', label: 'Reasoning', icon: Brain },
+  { path: '/symptom-checker', label: 'Symptom Checker', icon: Stethoscope },
   { path: '/benchmarks', label: 'Benchmarks', icon: BarChart3 },
 ]
 
@@ -58,6 +60,7 @@ export default function App() {
           <Route path="/verkle" element={<Verkle />} />
           <Route path="/provenance" element={<Provenance />} />
           <Route path="/reasoning" element={<Reasoning />} />
+          <Route path="/symptom-checker" element={<SymptomChecker />} />
           <Route path="/benchmarks" element={<Benchmarks />} />
         </Routes>
       </div>
