@@ -54,21 +54,18 @@ class SimulatedReasoningEngine(ReasoningEngine):
 
     Steps through a fixed check sequence:
       1. Check pairwise drug-drug interactions
-      2. Check patient condition contraindications
-      3. Check multi-factor hyperedge risks
+      2. Check multi-factor hyperedge risks (shared CYP enzymes, polypharmacy)
     """
 
     def __init__(self, hypergraph: Hypergraph):
         self.hg = hypergraph
         self._query_entities: Set[str] = set()
         self._checked_pairwise = False
-        self._checked_conditions = False
         self._checked_hyperedges = False
 
     def reset(self, entity_ids: Set[str]) -> None:
         self._query_entities = entity_ids
         self._checked_pairwise = False
-        self._checked_conditions = False
         self._checked_hyperedges = False
 
     def think(self, query: str, context: str) -> str:
@@ -78,8 +75,6 @@ class SimulatedReasoningEngine(ReasoningEngine):
                 if eid in self.hg.entities and self.hg.entities[eid].type == "drug"
             ]
             return f"I should check pairwise interactions between: {', '.join(drug_ids)}"
-        elif not self._checked_conditions:
-            return "I should check if patient conditions create additional risk with these drugs"
         elif not self._checked_hyperedges:
             return "I should check for multi-factor polypharmacy risks via hyperedges"
         return "I have enough information to conclude"
@@ -88,9 +83,6 @@ class SimulatedReasoningEngine(ReasoningEngine):
         if "pairwise" in thought:
             self._checked_pairwise = True
             return "check_pairwise", self._query_entities
-        elif "conditions" in thought:
-            self._checked_conditions = True
-            return "check_conditions", self._query_entities
         elif "hyperedge" in thought or "multi-factor" in thought:
             self._checked_hyperedges = True
             return "check_hyperedges", self._query_entities
@@ -107,8 +99,8 @@ class SimulatedReasoningEngine(ReasoningEngine):
         return "No significant interactions detected. Safe to prescribe with standard monitoring."
 
     def should_continue(self, iteration: int, observations: List[str]) -> bool:
-        return iteration < 3 and not (
-            self._checked_pairwise and self._checked_conditions and self._checked_hyperedges
+        return iteration < 2 and not (
+            self._checked_pairwise and self._checked_hyperedges
         )
 
 
@@ -128,16 +120,18 @@ class OllamaReasoningEngine(ReasoningEngine):
         hypergraph: Hypergraph,
         model: str = "phi4",
         base_url: str = "http://localhost:11434",
-        max_iterations: int = 5,
+        max_iterations: int = 3,
     ):
         self.hg = hypergraph
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.max_iterations = max_iterations
         self._query_entities: Set[str] = set()
+        self._completed_actions: Set[str] = set()
 
     def reset(self, entity_ids: Set[str]) -> None:
         self._query_entities = entity_ids
+        self._completed_actions = set()
 
     def _call_ollama(self, prompt: str) -> str:
         """Call Ollama generate API (non-streaming)."""
@@ -147,7 +141,7 @@ class OllamaReasoningEngine(ReasoningEngine):
         resp = httpx.post(
             f"{self.base_url}/api/generate",
             json={"model": self.model, "prompt": prompt, "stream": False},
-            timeout=120.0,
+            timeout=300.0,
         )
         resp.raise_for_status()
         text = resp.json()["response"]
@@ -163,7 +157,7 @@ class OllamaReasoningEngine(ReasoningEngine):
             "POST",
             f"{self.base_url}/api/generate",
             json={"model": self.model, "prompt": prompt, "stream": True},
-            timeout=120.0,
+            timeout=httpx.Timeout(timeout=300.0, connect=10.0),
         ) as resp:
             resp.raise_for_status()
             for line in resp.iter_lines():
@@ -179,23 +173,98 @@ class OllamaReasoningEngine(ReasoningEngine):
                     break
         logger.info("[Ollama/%s] Stream complete", self.model)
 
+    def _entity_summary(self) -> str:
+        """Build a rich summary of the queried entities from the hypergraph."""
+        lines = []
+        for eid in sorted(self._query_entities):
+            e = self.hg.entities.get(eid)
+            if not e:
+                lines.append(f"{eid} — (not found in hypergraph)")
+                continue
+
+            props = e.props_dict()
+            parts = [f"**{e.name}** ({eid})"]
+
+            # Classification / class / groups
+            if props.get("classification"):
+                parts.append(f"  Classification: {props['classification']}")
+            elif props.get("class"):
+                parts.append(f"  Class: {props['class']}")
+            if props.get("groups"):
+                parts.append(f"  Status: {props['groups']}")
+
+            # Key clinical fields
+            if props.get("indication"):
+                parts.append(f"  Indication: {props['indication']}")
+            if props.get("mechanism_of_action"):
+                parts.append(f"  Mechanism: {props['mechanism_of_action']}")
+            if props.get("half_life"):
+                parts.append(f"  Half-life: {props['half_life']}")
+            if props.get("metabolism"):
+                parts.append(f"  Metabolism: {props['metabolism']}")
+            if props.get("protein_binding"):
+                parts.append(f"  Protein binding: {props['protein_binding']}")
+            if props.get("toxicity"):
+                parts.append(f"  Toxicity: {props['toxicity']}")
+
+            # Targets, transporters, carriers, pathways
+            if props.get("targets"):
+                parts.append(f"  Targets: {props['targets']}")
+            if props.get("transporters"):
+                parts.append(f"  Transporters: {props['transporters']}")
+            if props.get("carriers"):
+                parts.append(f"  Carriers: {props['carriers']}")
+            if props.get("pathways"):
+                parts.append(f"  Pathways: {props['pathways']}")
+
+            # Supplementary
+            if props.get("food_interactions"):
+                parts.append(f"  Food interactions: {props['food_interactions']}")
+            if props.get("dosages"):
+                parts.append(f"  Dosages: {props['dosages']}")
+            if props.get("mixtures"):
+                parts.append(f"  Mixtures: {props['mixtures']}")
+
+            # Categories
+            cat_list = [v for k, v in e.properties if k == "category"]
+            if cat_list:
+                parts.append(f"  Categories: {', '.join(cat_list)}")
+
+            lines.append("\n".join(parts))
+        return "\n\n".join(lines)
+
     def build_think_prompt(self, query: str, context: str) -> str:
+        entity_info = self._entity_summary()
         return (
-            "You are a clinical pharmacology reasoning agent.\n"
-            f"Query: {query}\n"
-            f"Context so far:\n{context}\n\n"
-            "What should you investigate next? Respond with a single concise thought.\n"
-            "Focus on: drug-drug interactions, contraindications, or multi-factor risks."
+            "You are a clinical pharmacology reasoning agent with access to a "
+            "verified drug interaction hypergraph built from DrugBank data.\n\n"
+            f"**Query:** {query}\n\n"
+            f"**Entities under analysis:**\n{entity_info}\n\n"
+            f"**Evidence gathered so far:**\n{context}\n\n"
+            "Based on the above, what specific aspect should be investigated next?\n"
+            "Choose ONE of the following actions (use the EXACT keyword in brackets):\n"
+            "  [pairwise] — Check direct drug-drug interaction edges in the hypergraph\n"
+            "  [hyperedges] — Check multi-factor polypharmacy risks via hyperedge analysis "
+            "(shared CYP450 enzymes, metabolic conflicts, category overlaps)\n"
+            + (f"Already completed: {', '.join(sorted(self._completed_actions))}\n" if self._completed_actions else "")
+            + "Respond with a single concise thought. Include the [keyword] of your chosen action."
         )
 
     def build_synthesize_prompt(self, query: str, observations: List[str]) -> str:
+        entity_info = self._entity_summary()
         obs_text = "\n".join(f"- {o}" for o in observations)
         return (
-            "You are a clinical pharmacology reasoning agent.\n"
-            f"Query: {query}\n"
-            f"Observations:\n{obs_text}\n\n"
-            "Provide a concise clinical recommendation based on these observations.\n"
-            "Include risk level (SAFE / CAUTION / CONTRAINDICATED) and key reasons."
+            "You are a clinical pharmacology reasoning agent. You have completed "
+            "a multi-step investigation using a verified drug interaction hypergraph (DrugBank).\n\n"
+            f"**Query:** {query}\n\n"
+            f"**Entities analyzed:**\n{entity_info}\n\n"
+            f"**Evidence from hypergraph (verified via Verkle proofs):**\n{obs_text}\n\n"
+            "Provide a structured clinical recommendation:\n"
+            "1. **Risk Level**: SAFE / CAUTION / CONTRAINDICATED\n"
+            "2. **Key Findings**: Summarize the critical interactions or risks found\n"
+            "3. **Clinical Rationale**: Explain the mechanism (e.g. which enzymes, pathways, or conditions are involved)\n"
+            "4. **Recommendation**: What should a clinician do?\n\n"
+            "Base your answer ONLY on the evidence above. Do not speculate beyond the provided data."
         )
 
     def think(self, query: str, context: str) -> str:
@@ -208,12 +277,33 @@ class OllamaReasoningEngine(ReasoningEngine):
 
     def parse_action(self, thought: str) -> Tuple[str, Set[str]]:
         lower = thought.lower()
-        if any(kw in lower for kw in ("pairwise", "interaction", "drug-drug")):
-            return "check_pairwise", self._query_entities
-        elif any(kw in lower for kw in ("condition", "contraindic", "comorbid")):
-            return "check_conditions", self._query_entities
-        elif any(kw in lower for kw in ("hyperedge", "multi-factor", "polypharmacy", "combined")):
-            return "check_hyperedges", self._query_entities
+        # Score each action by keyword match specificity
+        scores: Dict[str, int] = {"check_pairwise": 0, "check_hyperedges": 0}
+        # Bracketed keywords (from prompt instructions) get highest weight
+        if "[pairwise]" in lower:
+            scores["check_pairwise"] += 10
+        if "[hyperedges]" in lower:
+            scores["check_hyperedges"] += 10
+        # Fallback: contextual keywords with lower weight
+        for kw in ("pairwise", "drug-drug", "interaction"):
+            if kw in lower:
+                scores["check_pairwise"] += 1
+        for kw in ("hyperedge", "multi-factor", "polypharmacy", "cyp", "enzyme", "metabolic"):
+            if kw in lower:
+                scores["check_hyperedges"] += 1
+
+        # Pick highest-scoring action that hasn't been completed yet
+        for action, _ in sorted(scores.items(), key=lambda x: -x[1]):
+            if action not in self._completed_actions and scores[action] > 0:
+                self._completed_actions.add(action)
+                return action, self._query_entities
+
+        # All done or no match — pick first uncompleted action
+        for action in ("check_pairwise", "check_hyperedges"):
+            if action not in self._completed_actions:
+                self._completed_actions.add(action)
+                return action, self._query_entities
+
         return "check_pairwise", self._query_entities
 
     def synthesize(self, query: str, observations: List[str]) -> str:

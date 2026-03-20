@@ -78,11 +78,17 @@ def stream_query(req: QueryRequest):
 
             if is_ollama:
                 prompt = engine.build_think_prompt(req.query, context)
+                yield _sse({"type": "prompt", "text": prompt})
                 thought_parts = []
-                for token, _done in engine.stream_ollama(prompt):
-                    thought_parts.append(token)
-                    yield _sse({"type": "token", "text": token})
-                thought = "".join(thought_parts)
+                try:
+                    for token, _done in engine.stream_ollama(prompt):
+                        thought_parts.append(token)
+                        yield _sse({"type": "token", "text": token})
+                    thought = "".join(thought_parts)
+                except Exception as exc:
+                    logger.warning("Stream failed, falling back: %s", exc)
+                    thought = engine.think(req.query, context)
+                    yield _sse({"type": "token", "text": thought})
             else:
                 thought = engine.think(req.query, context)
                 yield _sse({"type": "token", "text": thought})
@@ -127,11 +133,17 @@ def stream_query(req: QueryRequest):
 
         if is_ollama:
             prompt = engine.build_synthesize_prompt(req.query, observations)
+            yield _sse({"type": "prompt", "text": prompt})
             conc_parts = []
-            for token, _done in engine.stream_ollama(prompt):
-                conc_parts.append(token)
-                yield _sse({"type": "token", "text": token})
-            conclusion = "".join(conc_parts)
+            try:
+                for token, _done in engine.stream_ollama(prompt):
+                    conc_parts.append(token)
+                    yield _sse({"type": "token", "text": token})
+                conclusion = "".join(conc_parts)
+            except Exception as exc:
+                logger.warning("Stream failed, falling back: %s", exc)
+                conclusion = engine.synthesize(req.query, observations)
+                yield _sse({"type": "token", "text": conclusion})
         else:
             conclusion = engine.synthesize(req.query, observations)
             yield _sse({"type": "token", "text": conclusion})
@@ -184,7 +196,9 @@ def list_models():
     try:
         resp = httpx.get("http://localhost:11434/api/tags", timeout=5.0)
         resp.raise_for_status()
-        models = [m["name"] for m in resp.json().get("models", [])]
+        raw = [m["name"] for m in resp.json().get("models", [])]
+        # Normalize: strip ':latest' so names match what we store (e.g. 'phi4' not 'phi4:latest')
+        models = [m.removesuffix(":latest") for m in raw]
         return {"models": models}
     except Exception:
         return {"models": []}

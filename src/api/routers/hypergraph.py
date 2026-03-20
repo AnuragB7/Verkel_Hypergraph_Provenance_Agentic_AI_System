@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import List, Optional
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
@@ -18,13 +20,27 @@ def get_stats():
 
 
 @router.get("/entities")
-def get_entities(limit: int = Query(200, ge=1, le=10000), offset: int = Query(0, ge=0)):
+def get_entities(
+    limit: int = Query(200, ge=1, le=10000),
+    offset: int = Query(0, ge=0),
+    types: Optional[str] = Query(None, description="Comma-separated entity types to include"),
+):
     hg = get_state().hypergraph
-    entities = list(hg.entities.values())[offset:offset + limit]
-    return [
-        {"id": e.id, "type": e.type, "name": e.name, "properties": e.props_dict()}
-        for e in entities
-    ]
+    if types:
+        type_set = {t.strip() for t in types.split(",")}
+        filtered = [e for e in hg.entities.values() if e.type in type_set]
+        total = len(filtered)
+        entities = filtered[offset:offset + limit]
+    else:
+        total = len(hg.entities)
+        entities = list(hg.entities.values())[offset:offset + limit]
+    return {
+        "items": [
+            {"id": e.id, "type": e.type, "name": e.name, "properties": e.props_dict()}
+            for e in entities
+        ],
+        "total": total,
+    }
 
 
 @router.get("/entities/{entity_id}")
@@ -36,8 +52,38 @@ def get_entity(entity_id: str):
 
 
 @router.get("/edges")
-def get_edges(limit: int = Query(500, ge=1, le=50000), offset: int = Query(0, ge=0)):
+def get_edges(
+    limit: int = Query(500, ge=1, le=50000),
+    offset: int = Query(0, ge=0),
+    entity_ids: Optional[str] = Query(None, description="Comma-separated entity IDs to get edges for"),
+):
     hg = get_state().hypergraph
+    if entity_ids:
+        id_set = {eid.strip() for eid in entity_ids.split(",")}
+        # Collect ALL cross-type edges first, then DDI edges up to limit
+        cross_type = []
+        ddi = []
+        for e in hg.pairwise_edges:
+            if e.source_id in id_set or e.target_id in id_set:
+                if e.relation != "interacts_with":
+                    cross_type.append(e)
+                else:
+                    ddi.append(e)
+        # Prioritise cross-type (targets, enzymes, …) then fill with DDIs
+        if len(cross_type) >= limit:
+            matching = cross_type[:limit]
+        else:
+            remaining = limit - len(cross_type)
+            matching = cross_type + ddi[:remaining]
+        return [
+            {
+                "source_id": e.source_id,
+                "relation": e.relation,
+                "target_id": e.target_id,
+                "properties": e.props_dict(),
+            }
+            for e in matching
+        ]
     return [
         {
             "source_id": e.source_id,

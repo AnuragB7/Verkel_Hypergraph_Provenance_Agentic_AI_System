@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from vhp.audit import AuditRecord, AuditVerifier
 from vhp.hypergraph import Hypergraph, HypergraphPartition
@@ -134,8 +134,15 @@ class VHPPipeline:
             for eid_b in target_list[i + 1:]:
                 for neighbor_id, edge in self.hg.get_neighbors(eid_a, "interacts_with"):
                     if neighbor_id == eid_b:
-                        sev = dict(edge.properties).get("severity", "unknown")
-                        interactions.append(f"{eid_a}<->{eid_b} ({sev})")
+                        props = dict(edge.properties)
+                        sev = props.get("severity", "unknown")
+                        desc = props.get("description", "")
+                        name_a = self._entity_name(eid_a)
+                        name_b = self._entity_name(eid_b)
+                        line = f"{name_a} ({eid_a}) <-> {name_b} ({eid_b}): severity={sev}"
+                        if desc:
+                            line += f" — {desc}"
+                        interactions.append(line)
 
         # Proof for the pairwise interactions partition
         for pname in self.partitions:
@@ -147,11 +154,11 @@ class VHPPipeline:
 
         if interactions:
             return (
-                f"PAIRWISE: Found {len(interactions)} interactions: {'; '.join(interactions[:3])}",
+                f"PAIRWISE: Found {len(interactions)} interaction(s):\n" + "\n".join(interactions[:5]),
                 proofs,
                 hedge_ids,
             )
-        return "PAIRWISE: No direct interactions found", proofs, hedge_ids
+        return "PAIRWISE: No direct interactions found between the queried drugs.", proofs, hedge_ids
 
     def _check_conditions(
         self, targets: Set[str], proofs: list, hedge_ids: list
@@ -171,7 +178,13 @@ class VHPPipeline:
         for drug in drug_ids:
             for neighbor_id, edge in self.hg.get_neighbors(drug, "contraindicated_for"):
                 if neighbor_id in conditions or neighbor_id in targets:
-                    contras.append(f"{drug} contraindicated for {neighbor_id}")
+                    drug_name = self._entity_name(drug)
+                    cond_name = self._entity_name(neighbor_id)
+                    desc = dict(edge.properties).get("description", "")
+                    line = f"{drug_name} ({drug}) contraindicated for {cond_name} ({neighbor_id})"
+                    if desc:
+                        line += f" — {desc}"
+                    contras.append(line)
 
         for pname in self.partitions:
             if "contraindicated" in pname:
@@ -181,8 +194,8 @@ class VHPPipeline:
                     pass
 
         if contras:
-            return f"WARNING: {'; '.join(contras)}", proofs, hedge_ids
-        return "CONDITIONS: No contraindications found with patient conditions", proofs, hedge_ids
+            return f"CONTRAINDICATIONS: {'; '.join(contras)}", proofs, hedge_ids
+        return "CONDITIONS: No contraindications found with patient conditions.", proofs, hedge_ids
 
     def _check_hyperedges(
         self, targets: Set[str], proofs: list, hedge_ids: list
@@ -202,23 +215,29 @@ class VHPPipeline:
         critical = [h for h in matching if h.severity >= 0.8]
         moderate = [h for h in involved if h not in matching and h.severity >= 0.5]
 
+        def _he_detail(h: Any) -> str:
+            names = [self._entity_name(eid) for eid in sorted(h.entity_ids)]
+            return f"{h.label.replace('_', ' ')} involving {', '.join(names)} (severity: {h.severity})"
+
         if critical:
-            details = "; ".join(
-                f"{set(h.entity_ids)}→{h.label}(sev:{h.severity})"
-                for h in critical[:2]
-            )
+            details = "; ".join(_he_detail(h) for h in critical[:3])
             return (
-                f"CRITICAL HYPEREDGE: {len(critical)} multi-factor risks: {details}",
+                f"CRITICAL HYPEREDGE: {len(critical)} multi-factor risk(s): {details}",
                 proofs,
                 hedge_ids,
             )
         elif moderate:
+            details = "; ".join(_he_detail(h) for h in moderate[:3])
             return (
-                f"MODERATE: {len(moderate)} related hyperedges found",
+                f"MODERATE HYPEREDGE: {len(moderate)} related risk(s): {details}",
                 proofs,
                 hedge_ids,
             )
-        return "HYPEREDGES: No multi-factor risks detected", proofs, hedge_ids
+        return "HYPEREDGES: No multi-factor risks detected for queried entities.", proofs, hedge_ids
+
+    def _entity_name(self, eid: str) -> str:
+        e = self.hg.entities.get(eid)
+        return e.name if e else eid
 
     @property
     def audit_records(self) -> List[AuditRecord]:

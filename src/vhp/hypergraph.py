@@ -192,12 +192,16 @@ class Hypergraph:
     # -- Stats -------------------------------------------------------------
 
     @property
-    def stats(self) -> Dict[str, int]:
+    def stats(self) -> Dict[str, Any]:
+        type_counts: Dict[str, int] = {}
+        for e in self.entities.values():
+            type_counts[e.type] = type_counts.get(e.type, 0) + 1
         return {
             "entities": len(self.entities),
             "pairwise_edges": len(self.pairwise_edges),
             "hyperedges": len(self.hyperedges),
-            "entity_types": len({e.type for e in self.entities.values()}),
+            "entity_types": len(type_counts),
+            "entity_type_counts": type_counts,
         }
 
     # -- Serialization helpers for API -------------------------------------
