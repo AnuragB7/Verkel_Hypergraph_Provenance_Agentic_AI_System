@@ -2,7 +2,7 @@
 
 from vhp.audit import AuditVerifier
 from vhp.pipeline import VHPPipeline
-from vhp.reasoning import SimulatedReasoningEngine
+from vhp.reasoning import OllamaReasoningEngine
 from vhp.serialization import serialize_partition
 from vhp.verkle import TemporalRootChain, VerkleTree
 
@@ -14,7 +14,7 @@ def _build_pipeline(hg):
     vt.build(leaf_data)
     rc = TemporalRootChain()
     rc.append_root(vt.root_commitment)
-    engine = SimulatedReasoningEngine(hg)
+    engine = OllamaReasoningEngine(hg)
     return VHPPipeline(hg, vt, engine, rc)
 
 

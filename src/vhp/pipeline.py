@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from vhp.audit import AuditRecord, AuditVerifier
 from vhp.hypergraph import Hypergraph, HypergraphPartition
 from vhp.provenance import NodeType, ProvenanceDAG
-from vhp.reasoning import ReasoningEngine, SimulatedReasoningEngine
+from vhp.reasoning import ReasoningEngine
 from vhp.serialization import serialize_partition
 from vhp.verkle import TemporalRootChain, VerkleProof, VerkleTree
 
@@ -46,9 +46,7 @@ class VHPPipeline:
         logger.info("Processing query: %s with entities: %s", query, entity_ids)
 
         # Reset engine state for new query
-        if isinstance(self.engine, SimulatedReasoningEngine):
-            self.engine.reset(entity_ids)
-        elif hasattr(self.engine, "reset"):
+        if hasattr(self.engine, "reset"):
             self.engine.reset(entity_ids)
 
         dag = ProvenanceDAG()

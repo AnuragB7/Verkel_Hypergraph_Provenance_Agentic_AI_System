@@ -1,0 +1,524 @@
+{
+  "performance": {
+    "results": [
+      {
+        "operation": "partition_hypergraph",
+        "ms": 243.24900000647176
+      },
+      {
+        "operation": "build_verkle",
+        "ms": 147.38504200067837
+      },
+      {
+        "operation": "build_merkle",
+        "ms": 111.6306660042028
+      },
+      {
+        "operation": "verkle_proof_gen_100x",
+        "ms": 0.07079200440784916
+      },
+      {
+        "operation": "verkle_verify_100x",
+        "ms": 0.1397079977323301
+      },
+      {
+        "operation": "full_pipeline_query",
+        "ms": 35260.65941699926
+      }
+    ]
+  },
+  "scalability": {
+    "results": [
+      {
+        "leaves": 4,
+        "build_ms": 0.0132,
+        "proof_gen_ms": 0.0026,
+        "verify_ms": 0.002
+      },
+      {
+        "leaves": 8,
+        "build_ms": 0.0111,
+        "proof_gen_ms": 0.0011,
+        "verify_ms": 0.002
+      },
+      {
+        "leaves": 16,
+        "build_ms": 0.0207,
+        "proof_gen_ms": 0.0011,
+        "verify_ms": 0.0026
+      },
+      {
+        "leaves": 32,
+        "build_ms": 0.0433,
+        "proof_gen_ms": 0.0012,
+        "verify_ms": 0.0033
+      },
+      {
+        "leaves": 64,
+        "build_ms": 0.0778,
+        "proof_gen_ms": 0.0011,
+        "verify_ms": 0.0039
+      },
+      {
+        "leaves": 128,
+        "build_ms": 0.1571,
+        "proof_gen_ms": 0.0012,
+        "verify_ms": 0.0044
+      },
+      {
+        "leaves": 256,
+        "build_ms": 0.3122,
+        "proof_gen_ms": 0.0012,
+        "verify_ms": 0.0057
+      },
+      {
+        "leaves": 512,
+        "build_ms": 0.6779,
+        "proof_gen_ms": 0.0013,
+        "verify_ms": 0.0055
+      },
+      {
+        "leaves": 1024,
+        "build_ms": 1.6019,
+        "proof_gen_ms": 0.0019,
+        "verify_ms": 0.006
+      }
+    ]
+  },
+  "build_time": {
+    "results": [
+      {
+        "leaves": 4,
+        "verkle_build_ms": 0.0091,
+        "merkle_build_ms": 0.0057,
+        "verkle_proof_ms": 0.0037,
+        "merkle_proof_ms": 0.0041,
+        "verkle_verify_ms": 0.003,
+        "merkle_verify_ms": 0.003
+      },
+      {
+        "leaves": 16,
+        "verkle_build_ms": 0.018,
+        "merkle_build_ms": 0.0135,
+        "verkle_proof_ms": 0.002,
+        "merkle_proof_ms": 0.0017,
+        "verkle_verify_ms": 0.0028,
+        "merkle_verify_ms": 0.0028
+      },
+      {
+        "leaves": 64,
+        "verkle_build_ms": 0.0738,
+        "merkle_build_ms": 0.0544,
+        "verkle_proof_ms": 0.0017,
+        "merkle_proof_ms": 0.002,
+        "verkle_verify_ms": 0.0037,
+        "merkle_verify_ms": 0.0032
+      },
+      {
+        "leaves": 256,
+        "verkle_build_ms": 0.251,
+        "merkle_build_ms": 0.1982,
+        "verkle_proof_ms": 0.0017,
+        "merkle_proof_ms": 0.0017,
+        "verkle_verify_ms": 0.0046,
+        "merkle_verify_ms": 0.0038
+      },
+      {
+        "leaves": 512,
+        "verkle_build_ms": 0.5047,
+        "merkle_build_ms": 0.4057,
+        "verkle_proof_ms": 0.0019,
+        "merkle_proof_ms": 0.0051,
+        "verkle_verify_ms": 0.0053,
+        "merkle_verify_ms": 0.0044
+      },
+      {
+        "leaves": 1024,
+        "verkle_build_ms": 1.0755,
+        "merkle_build_ms": 0.9196,
+        "verkle_proof_ms": 0.0042,
+        "merkle_proof_ms": 0.0023,
+        "verkle_verify_ms": 0.0057,
+        "merkle_verify_ms": 0.0047
+      }
+    ]
+  },
+  "scale_extended": {
+    "results": [
+      {
+        "leaves": 64,
+        "verkle_build_ms": 0.07,
+        "merkle_build_ms": 0.05,
+        "verkle_proof_ms": 0.003,
+        "merkle_proof_ms": 0.0017,
+        "verkle_verify_ms": 0.0041,
+        "verkle_proof_bytes": 96,
+        "merkle_proof_bytes": 192,
+        "size_reduction_pct": 50.0
+      },
+      {
+        "leaves": 256,
+        "verkle_build_ms": 0.26,
+        "merkle_build_ms": 0.2,
+        "verkle_proof_ms": 0.0021,
+        "merkle_proof_ms": 0.0017,
+        "verkle_verify_ms": 0.0048,
+        "verkle_proof_bytes": 96,
+        "merkle_proof_bytes": 256,
+        "size_reduction_pct": 62.5
+      },
+      {
+        "leaves": 1000,
+        "verkle_build_ms": 0.97,
+        "merkle_build_ms": 0.88,
+        "verkle_proof_ms": 0.0021,
+        "merkle_proof_ms": 0.002,
+        "verkle_verify_ms": 0.0055,
+        "verkle_proof_bytes": 96,
+        "merkle_proof_bytes": 320,
+        "size_reduction_pct": 70.0
+      },
+      {
+        "leaves": 10000,
+        "verkle_build_ms": 10.33,
+        "merkle_build_ms": 8.39,
+        "verkle_proof_ms": 0.0066,
+        "merkle_proof_ms": 0.005,
+        "verkle_verify_ms": 0.0078,
+        "verkle_proof_bytes": 96,
+        "merkle_proof_bytes": 448,
+        "size_reduction_pct": 78.6
+      },
+      {
+        "leaves": 50000,
+        "verkle_build_ms": 54.12,
+        "merkle_build_ms": 45.25,
+        "verkle_proof_ms": 0.0074,
+        "merkle_proof_ms": 0.0069,
+        "verkle_verify_ms": 0.0101,
+        "verkle_proof_bytes": 96,
+        "merkle_proof_bytes": 512,
+        "size_reduction_pct": 81.2
+      },
+      {
+        "leaves": 100000,
+        "verkle_build_ms": 112.84,
+        "merkle_build_ms": 100.24,
+        "verkle_proof_ms": 0.0102,
+        "merkle_proof_ms": 0.0111,
+        "verkle_verify_ms": 0.01,
+        "verkle_proof_bytes": 96,
+        "merkle_proof_bytes": 544,
+        "size_reduction_pct": 82.4
+      }
+    ]
+  },
+  "layer_overhead": {
+    "layers": [
+      {
+        "layer": "L1 \u2014 Hypergraph Query",
+        "ms": 20.4931
+      },
+      {
+        "layer": "L1 \u2014 Serialize Partitions",
+        "ms": 4756.1853
+      },
+      {
+        "layer": "L2 \u2014 Build Verkle Tree",
+        "ms": 144.5587
+      },
+      {
+        "layer": "L2 \u2014 Generate All Proofs",
+        "ms": 0.0133
+      },
+      {
+        "layer": "L2 \u2014 Verify All Proofs",
+        "ms": 0.0225
+      },
+      {
+        "layer": "L3 \u2014 Provenance Reasoning",
+        "ms": 27441.6458
+      },
+      {
+        "layer": "Audit Verification",
+        "ms": 0.3058
+      }
+    ],
+    "total_ms": 32363.2245
+  },
+  "dag_complexity": {
+    "results": [
+      {
+        "label": "2 entities",
+        "entities": 2,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "query_ms": 29371.6399
+      },
+      {
+        "label": "3 entities",
+        "entities": 3,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "query_ms": 36167.4836
+      },
+      {
+        "label": "4 entities",
+        "entities": 4,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "query_ms": 66111.0177
+      },
+      {
+        "label": "5 entities",
+        "entities": 5,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "query_ms": 66803.1661
+      },
+      {
+        "label": "6 entities",
+        "entities": 6,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "query_ms": 76622.7674
+      },
+      {
+        "label": "7 entities",
+        "entities": 7,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "query_ms": 70134.0783
+      }
+    ]
+  },
+  "hypergraph_vs_pairwise": {
+    "comparisons": [
+      {
+        "scenario": "Bivalirudin + Octreotide + Ticlopidine",
+        "source": "hyperedge",
+        "entity_count": 3,
+        "pairwise_edges_found": 1,
+        "hyperedges_found": 1,
+        "hyperedge_labels": [
+          "metabolic_conflict"
+        ],
+        "pairwise_detects_risk": true,
+        "hypergraph_detects_risk": true
+      },
+      {
+        "scenario": "Zilurgisertib + Benzylsulfamide",
+        "source": "random",
+        "entity_count": 2,
+        "pairwise_edges_found": 0,
+        "hyperedges_found": 0,
+        "hyperedge_labels": [],
+        "pairwise_detects_risk": false,
+        "hypergraph_detects_risk": false
+      },
+      {
+        "scenario": "Zilurgisertib + Benzylsulfamide + Ciapilome",
+        "source": "random",
+        "entity_count": 3,
+        "pairwise_edges_found": 0,
+        "hyperedges_found": 0,
+        "hyperedge_labels": [],
+        "pairwise_detects_risk": false,
+        "hypergraph_detects_risk": false
+      },
+      {
+        "scenario": "APT3111 + Zilurgisertib + Benzylsulfamide +1 more",
+        "source": "random",
+        "entity_count": 4,
+        "pairwise_edges_found": 0,
+        "hyperedges_found": 0,
+        "hyperedge_labels": [],
+        "pairwise_detects_risk": false,
+        "hypergraph_detects_risk": false
+      },
+      {
+        "scenario": "APT3111 + Recombinant soluble human CD4 + Zilurgisertib +2 more",
+        "source": "random",
+        "entity_count": 5,
+        "pairwise_edges_found": 0,
+        "hyperedges_found": 0,
+        "hyperedge_labels": [],
+        "pairwise_detects_risk": false,
+        "hypergraph_detects_risk": false
+      }
+    ],
+    "summary": {
+      "total_scenarios": 5,
+      "pairwise_detection_rate": 20.0,
+      "hypergraph_detection_rate": 20.0
+    }
+  },
+  "model_agnosticism": {
+    "results": [
+      {
+        "model": "phi4 (14B)",
+        "verkle_proof_gen_ms": 0.016,
+        "verkle_verify_ms": 0.0161,
+        "dag_verify_ms": 0.0182,
+        "audit_seal_ms": 0.017,
+        "audit_verify_ms": 0.0187,
+        "total_vhp_overhead_ms": 0.0859
+      },
+      {
+        "model": "gemma3:4b (4B)",
+        "verkle_proof_gen_ms": 0.0181,
+        "verkle_verify_ms": 0.015,
+        "dag_verify_ms": 0.0183,
+        "audit_seal_ms": 0.017,
+        "audit_verify_ms": 0.0184,
+        "total_vhp_overhead_ms": 0.0868
+      },
+      {
+        "model": "llama3 (8B)",
+        "verkle_proof_gen_ms": 0.0201,
+        "verkle_verify_ms": 0.0151,
+        "dag_verify_ms": 0.0193,
+        "audit_seal_ms": 0.0197,
+        "audit_verify_ms": 0.0185,
+        "total_vhp_overhead_ms": 0.0927
+      }
+    ]
+  },
+  "audit_storage": {
+    "results": [
+      {
+        "entities": 2,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "record_bytes": 9767,
+        "record_kb": 9.54
+      },
+      {
+        "entities": 3,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "record_bytes": 11765,
+        "record_kb": 11.49
+      },
+      {
+        "entities": 4,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "record_bytes": 11083,
+        "record_kb": 10.82
+      },
+      {
+        "entities": 5,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "record_bytes": 10253,
+        "record_kb": 10.01
+      },
+      {
+        "entities": 6,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "record_bytes": 12402,
+        "record_kb": 12.11
+      },
+      {
+        "entities": 7,
+        "dag_nodes": 10,
+        "dag_depth": 10,
+        "verkle_proofs": 4,
+        "record_bytes": 12959,
+        "record_kb": 12.66
+      }
+    ]
+  },
+  "verification_throughput": {
+    "records_verified": 10,
+    "passed": 10,
+    "total_seconds": 0.0318,
+    "records_per_second": 314.7,
+    "avg_verify_ms": 3.1774
+  },
+  "incremental_update": {
+    "results": [
+      {
+        "leaves": 4,
+        "update_ms": 0.0078,
+        "root_changed": true
+      },
+      {
+        "leaves": 16,
+        "update_ms": 0.0051,
+        "root_changed": true
+      },
+      {
+        "leaves": 64,
+        "update_ms": 0.0048,
+        "root_changed": true
+      },
+      {
+        "leaves": 256,
+        "update_ms": 0.009,
+        "root_changed": true
+      },
+      {
+        "leaves": 512,
+        "update_ms": 0.0064,
+        "root_changed": true
+      },
+      {
+        "leaves": 1024,
+        "update_ms": 0.0069,
+        "root_changed": true
+      },
+      {
+        "leaves": 8,
+        "update_ms": 0.0039,
+        "root_changed": true,
+        "note": "Actual DrugBank partitions"
+      }
+    ]
+  },
+  "adversarial": {
+    "tests": [
+      {
+        "test": "verkle_tamper_detection",
+        "passed": true,
+        "details": {
+          "valid_before": true,
+          "valid_after_tamper": false,
+          "root_changed": false
+        }
+      },
+      {
+        "test": "root_chain_integrity",
+        "passed": true,
+        "details": {
+          "chain_length": 1
+        }
+      },
+      {
+        "test": "full_audit_verification",
+        "passed": true,
+        "details": {
+          "record_hash_valid": true,
+          "verkle_root_matches": true,
+          "all_dag_hashes_valid": true,
+          "dag_is_acyclic": true,
+          "overall_valid": true
+        }
+      }
+    ],
+    "all_passed": true
+  }
+}

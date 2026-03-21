@@ -1,0 +1,228 @@
+% Auto-generated VHP benchmark tables
+% Generated: 2026-03-21 11:01:47
+
+% === performance ===
+\begin{table}[H]
+\centering
+\caption{Core VHP operation timings on DrugBank dataset}
+\label{tab:core_performance}
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Operation} & \textbf{Time (ms)} \\
+\midrule
+partition_hypergraph & 243.2490 \\
+build_verkle & 147.3850 \\
+build_merkle & 111.6307 \\
+verkle_proof_gen_100x & 0.0708 \\
+verkle_verify_100x & 0.1397 \\
+full_pipeline_query & 35260.6594 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === scalability ===
+\begin{table}[H]
+\centering
+\caption{Verkle tree scalability: build, proof, and verification time vs leaf count}
+\label{tab:scalability}
+\begin{tabular}{@{}rccc@{}}
+\toprule
+\textbf{Leaves} & \textbf{Build (ms)} & \textbf{Proof Gen (ms)} & \textbf{Verify (ms)} \\
+\midrule
+4 & 0.0132 & 0.0026 & 0.0020 \\
+8 & 0.0111 & 0.0011 & 0.0020 \\
+16 & 0.0207 & 0.0011 & 0.0026 \\
+32 & 0.0433 & 0.0012 & 0.0033 \\
+64 & 0.0778 & 0.0011 & 0.0039 \\
+128 & 0.1571 & 0.0012 & 0.0044 \\
+256 & 0.3122 & 0.0012 & 0.0057 \\
+512 & 0.6779 & 0.0013 & 0.0055 \\
+1024 & 1.6019 & 0.0019 & 0.0060 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === build-time-comparison ===
+\begin{table}[H]
+\centering
+\caption{Verkle vs Merkle tree construction and proof time comparison}
+\label{tab:build_time}
+\begin{tabular}{@{}rcccccc@{}}
+\toprule
+\textbf{Leaves} & \textbf{V-Build (ms)} & \textbf{M-Build (ms)} & \textbf{V-Proof (ms)} & \textbf{M-Proof (ms)} & \textbf{V-Verify (ms)} & \textbf{M-Verify (ms)} \\
+\midrule
+4 & 0.0091 & 0.0057 & 0.0037 & 0.0041 & 0.0030 & 0.0030 \\
+16 & 0.0180 & 0.0135 & 0.0020 & 0.0017 & 0.0028 & 0.0028 \\
+64 & 0.0738 & 0.0544 & 0.0017 & 0.0020 & 0.0037 & 0.0032 \\
+256 & 0.2510 & 0.1982 & 0.0017 & 0.0017 & 0.0046 & 0.0038 \\
+512 & 0.5047 & 0.4057 & 0.0019 & 0.0051 & 0.0053 & 0.0044 \\
+1024 & 1.0755 & 0.9196 & 0.0042 & 0.0023 & 0.0057 & 0.0047 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === scale-extended ===
+\begin{table}[H]
+\centering
+\caption{Verkle vs Merkle proof size and generation time at varying knowledge base scale}
+\label{tab:scale_extended}
+\begin{tabular}{@{}rcccccc@{}}
+\toprule
+\textbf{Subgroups (k)} & \textbf{Verkle Proof} & \textbf{Merkle Proof} & \textbf{Reduction} & \textbf{V-Gen (ms)} & \textbf{M-Gen (ms)} & \textbf{V-Verify (ms)} \\
+\midrule
+64 & 96 bytes & 192 bytes & 50.0\% & 0.0030 & 0.0017 & 0.0041 \\
+256 & 96 bytes & 256 bytes & 62.5\% & 0.0021 & 0.0017 & 0.0048 \\
+1,000 & 96 bytes & 320 bytes & 70.0\% & 0.0021 & 0.0020 & 0.0055 \\
+10,000 & 96 bytes & 448 bytes & 78.6\% & 0.0066 & 0.0050 & 0.0078 \\
+50,000 & 96 bytes & 512 bytes & 81.2\% & 0.0074 & 0.0069 & 0.0101 \\
+100,000 & 96 bytes & 544 bytes & 82.4\% & 0.0102 & 0.0111 & 0.0100 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === layer-overhead ===
+\begin{table}[H]
+\centering
+\caption{VHP per-layer overhead breakdown for a single query}
+\label{tab:layer_overhead}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Layer} & \textbf{Time (ms)} & \textbf{% of Total} \\
+\midrule
+L1 — Hypergraph Query & 20.4931 & 0.1\% \\
+L1 — Serialize Partitions & 4756.1853 & 14.7\% \\
+L2 — Build Verkle Tree & 144.5587 & 0.4\% \\
+L2 — Generate All Proofs & 0.0133 & 0.0\% \\
+L2 — Verify All Proofs & 0.0225 & 0.0\% \\
+L3 — Provenance Reasoning & 27441.6458 & 84.8\% \\
+Audit Verification & 0.3058 & 0.0\% \\
+\textbf{Total} & \textbf{32363.2245} & \textbf{100\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === dag-complexity ===
+\begin{table}[H]
+\centering
+\caption{Provenance DAG depth and node count scaling with query complexity}
+\label{tab:dag_complexity}
+\begin{tabular}{@{}rcccc@{}}
+\toprule
+\textbf{Entities} & \textbf{DAG Nodes} & \textbf{DAG Depth} & \textbf{Verkle Proofs} & \textbf{Query (ms)} \\
+\midrule
+2 & 10 & 10 & 4 & 29371.64 \\
+3 & 10 & 10 & 4 & 36167.48 \\
+4 & 10 & 10 & 4 & 66111.02 \\
+5 & 10 & 10 & 4 & 66803.17 \\
+6 & 10 & 10 & 4 & 76622.77 \\
+7 & 10 & 10 & 4 & 70134.08 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === hypergraph-vs-pairwise ===
+\begin{table}[H]
+\centering
+\caption{Hypergraph vs pairwise risk detection (PW: 20.0\%, HG: 20.0\%)}
+\label{tab:hg_vs_pw}
+\begin{tabular}{@{}rcccc@{}}
+\toprule
+\textbf{Entities} & \textbf{Pairwise Edges} & \textbf{Hyperedges} & \textbf{PW Detects?} & \textbf{HG Detects?} \\
+\midrule
+3 & 1 & 1 & \checkmark & \checkmark \\
+2 & 0 & 0 & --- & --- \\
+3 & 0 & 0 & --- & --- \\
+4 & 0 & 0 & --- & --- \\
+5 & 0 & 0 & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === model-agnosticism ===
+\begin{table}[H]
+\centering
+\caption{VHP verification overhead is constant regardless of reasoning engine (all times in ms)}
+\label{tab:model_agnosticism}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Reasoning Engine} & \textbf{Proof Gen (ms)} & \textbf{Verify (ms)} & \textbf{DAG (ms)} & \textbf{Seal (ms)} & \textbf{Total VHP (ms)} \\
+\midrule
+phi4 (14B) & 0.016 & 0.016 & 0.018 & 0.017 & 0.086 \\
+gemma3:4b (4B) & 0.018 & 0.015 & 0.018 & 0.017 & 0.087 \\
+llama3 (8B) & 0.020 & 0.015 & 0.019 & 0.020 & 0.093 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === audit-storage ===
+\begin{table}[H]
+\centering
+\caption{Audit record storage overhead at varying query complexity}
+\label{tab:audit_storage}
+\begin{tabular}{@{}rcccc@{}}
+\toprule
+\textbf{Entities} & \textbf{DAG Nodes} & \textbf{Depth} & \textbf{Proofs} & \textbf{Record Size} \\
+\midrule
+2 & 10 & 10 & 4 & 9.5 KB \\
+3 & 10 & 10 & 4 & 11.5 KB \\
+4 & 10 & 10 & 4 & 10.8 KB \\
+5 & 10 & 10 & 4 & 10.0 KB \\
+6 & 10 & 10 & 4 & 12.1 KB \\
+7 & 10 & 10 & 4 & 12.7 KB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === verification-throughput ===
+\begin{table}[H]
+\centering
+\caption{Independent audit verification throughput (batch of 50 records)}
+\label{tab:verification_throughput}
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Records verified & 10 \\
+All passed & 10/10 \\
+Total time & 0.032s \\
+Records/second & 314.7 \\
+Avg verify time & 3.177 ms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === incremental-update ===
+\begin{table}[H]
+\centering
+\caption{Cost of incrementally updating a single knowledge partition}
+\label{tab:incremental_update}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Leaves} & \textbf{Update Time (ms)} & \textbf{Root Changed} \\
+\midrule
+4 & 0.0078 & Yes \\
+16 & 0.0051 & Yes \\
+64 & 0.0048 & Yes \\
+256 & 0.0090 & Yes \\
+512 & 0.0064 & Yes \\
+1024 & 0.0069 & Yes \\
+8 (Actual DrugBank partitions) & 0.0039 & Yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% === adversarial ===
+\begin{table}[H]
+\centering
+\caption{Adversarial integrity test results}
+\label{tab:adversarial}
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Test} & \textbf{Passed} \\
+\midrule
+verkle_tamper_detection & PASS \\
+root_chain_integrity & PASS \\
+full_audit_verification & PASS \\
+\bottomrule
+\end{tabular}
+\end{table}

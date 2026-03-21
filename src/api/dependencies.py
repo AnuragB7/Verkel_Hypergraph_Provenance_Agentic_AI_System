@@ -13,7 +13,7 @@ from vhp.audit import AuditRecord, AuditVerifier
 from vhp.graphrag import DrugEmbeddingIndex, GraphRAGRetriever
 from vhp.hypergraph import Hypergraph
 from vhp.pipeline import VHPPipeline
-from vhp.reasoning import ReasoningEngine, SimulatedReasoningEngine, get_engine
+from vhp.reasoning import ReasoningEngine, get_engine
 from vhp.serialization import serialize_partition
 from vhp.verkle import TemporalRootChain, VerkleTree
 
@@ -31,7 +31,7 @@ class AppState:
         self._verkle: Optional[VerkleTree] = None
         self._root_chain: Optional[TemporalRootChain] = None
         self._pipeline: Optional[VHPPipeline] = None
-        self._engine_type: str = "simulated"
+        self._engine_type: str = "ollama"
         self._embedding_index: Optional[DrugEmbeddingIndex] = None
         self._graphrag: Optional[GraphRAGRetriever] = None
 
@@ -87,7 +87,7 @@ class AppState:
             self._graphrag = None
 
     def _detect_engine(self, **kwargs) -> str:
-        """Try to connect to Ollama; fall back to simulated if unavailable."""
+        """Verify Ollama is running and the model is available."""
         import httpx
 
         base_url = kwargs.get("base_url", "http://localhost:11434")
@@ -100,10 +100,19 @@ class AppState:
             if any(m == model or m.startswith(f"{model}:") for m in models):
                 logger.info("Ollama detected with model '%s' — using LLM engine", model)
                 return "ollama"
-            logger.warning("Ollama running but model '%s' not found (available: %s) — falling back to simulated", model, models)
+            logger.warning(
+                "Ollama running but model '%s' not found (available: %s). "
+                "Pull it with: ollama pull %s",
+                model, models, model,
+            )
         except Exception:
-            logger.info("Ollama not reachable at %s — using simulated engine", base_url)
-        return "simulated"
+            logger.error(
+                "Ollama not reachable at %s — VHP requires Ollama for real LLM inference. "
+                "Start Ollama first: https://ollama.ai",
+                base_url,
+            )
+        # Still return 'ollama' — it will error on first query, giving a clear message
+        return "ollama"
 
     @property
     def hypergraph(self) -> Hypergraph:

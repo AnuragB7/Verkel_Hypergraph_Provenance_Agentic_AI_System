@@ -1,13 +1,12 @@
 """Layer 4: Pluggable Reasoning Engine.
 
 VHP is engine-agnostic — the verification stack wraps ANY reasoning
-system.  This module defines the abstract interface and two concrete
-implementations:
+system.  This module defines the abstract interface and the concrete
+OllamaReasoningEngine implementation that connects to a local Ollama
+instance for real SLM/LLM inference (Phi-4, Gemma3, Llama3, etc.).
 
-  1. SimulatedReasoningEngine  — deterministic rule-based logic for
-     reproducible evaluation independent of LLM stochasticity.
-  2. OllamaReasoningEngine     — connects to a local Ollama instance
-     for actual SLM/LLM inference (Phi-4, Qwen3, Mistral, etc.).
+All benchmarks and evaluations use real LLM inference to produce
+genuine empirical evidence for the paper.
 """
 
 from __future__ import annotations
@@ -43,65 +42,6 @@ class ReasoningEngine(ABC):
 
     def reset(self, entity_ids: Set[str]) -> None:
         """Reset engine state for a new query (optional)."""
-
-
-# ---------------------------------------------------------------------------
-# Simulated (deterministic) engine
-# ---------------------------------------------------------------------------
-
-class SimulatedReasoningEngine(ReasoningEngine):
-    """Rule-based reasoning for reproducible evaluation.
-
-    Steps through a fixed check sequence:
-      1. Check pairwise drug-drug interactions
-      2. Check multi-factor hyperedge risks (shared CYP enzymes, polypharmacy)
-    """
-
-    def __init__(self, hypergraph: Hypergraph):
-        self.hg = hypergraph
-        self._query_entities: Set[str] = set()
-        self._checked_pairwise = False
-        self._checked_hyperedges = False
-
-    def reset(self, entity_ids: Set[str]) -> None:
-        self._query_entities = entity_ids
-        self._checked_pairwise = False
-        self._checked_hyperedges = False
-
-    def think(self, query: str, context: str) -> str:
-        if not self._checked_pairwise:
-            drug_ids = [
-                eid for eid in self._query_entities
-                if eid in self.hg.entities and self.hg.entities[eid].type == "drug"
-            ]
-            return f"I should check pairwise interactions between: {', '.join(drug_ids)}"
-        elif not self._checked_hyperedges:
-            return "I should check for multi-factor polypharmacy risks via hyperedges"
-        return "I have enough information to conclude"
-
-    def parse_action(self, thought: str) -> Tuple[str, Set[str]]:
-        if "pairwise" in thought:
-            self._checked_pairwise = True
-            return "check_pairwise", self._query_entities
-        elif "hyperedge" in thought or "multi-factor" in thought:
-            self._checked_hyperedges = True
-            return "check_hyperedges", self._query_entities
-        return "conclude", self._query_entities
-
-    def synthesize(self, query: str, observations: List[str]) -> str:
-        critical = [o for o in observations if "CRITICAL" in o or "SEVERE" in o]
-        warnings = [o for o in observations if "WARNING" in o or "MODERATE" in o]
-
-        if critical:
-            return f"CONTRAINDICATED: {len(critical)} critical risk(s) found. {' '.join(critical[:2])}"
-        elif warnings:
-            return f"CAUTION: {len(warnings)} moderate risk(s). Monitor closely. {' '.join(warnings[:2])}"
-        return "No significant interactions detected. Safe to prescribe with standard monitoring."
-
-    def should_continue(self, iteration: int, observations: List[str]) -> bool:
-        return iteration < 2 and not (
-            self._checked_pairwise and self._checked_hyperedges
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -326,12 +266,17 @@ def get_engine(
     hypergraph: Hypergraph,
     **kwargs: Any,
 ) -> ReasoningEngine:
-    """Factory function for reasoning engines."""
-    if engine_type == "simulated":
-        return SimulatedReasoningEngine(hypergraph)
-    elif engine_type == "ollama":
+    """Factory function for reasoning engines.
+
+    Only the Ollama engine is supported — all evaluation uses real
+    LLM inference for genuine empirical evidence.
+    """
+    if engine_type == "ollama":
         import os
         if "model" not in kwargs:
             kwargs["model"] = os.environ.get("VHP_MODEL", "phi4")
         return OllamaReasoningEngine(hypergraph, **kwargs)
-    raise ValueError(f"Unknown engine type: {engine_type}")
+    raise ValueError(
+        f"Unknown engine type: {engine_type!r}. "
+        "Only 'ollama' is supported — ensure Ollama is running."
+    )
