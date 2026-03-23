@@ -12,3 +12,4 @@ backend/data/drugbank.xml
 ~$*
 *.pdf
 *.docx
+paper/
