@@ -202,4 +202,4 @@ If you use VHP in your research, please cite:
 
 ## Author
 
-**Anurag Rajkumar Bombarde** — T-Systems International
+**Anurag Rajkumar Bombarde** 
